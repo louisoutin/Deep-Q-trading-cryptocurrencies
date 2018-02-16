@@ -56,7 +56,7 @@ class Coin:
         import math
         # Prevent overflow
         x = np.float(x)
-        ans = np.float(1 / (1 + math.exp(-x*0.2)))
+        ans = np.float(1 / (1 + math.exp(-x*0.1)))
         return ans
 
     def getDeltaValues(self):
@@ -68,7 +68,7 @@ class Coin:
             else:
                 currentValue = self.dataSet["open"][self.currentIndex-i]
                 previousValue = self.dataSet["open"][self.currentIndex-(i+1)]
-                delta = self.sigmoid(currentValue - previousValue)
+                delta = (currentValue - previousValue) / previousValue
             deltas.append(delta)
         return deltas
 
@@ -143,8 +143,11 @@ class Coin:
         plt.plot(t, self.dataSet["boll_ub"])
         plt.show()
 
-    def getReward(self):
-        return self.cummulatedWealth(100)
+    def getReward(self,lastAction = None):
+        res = self.cummulatedWealth(100)
+        #if lastAction != None: # bonus if same than last action
+            #res[lastAction]+=0.0025
+        return res
 
     def dailyProfit(self, action):
         """
@@ -172,11 +175,11 @@ class Coin:
         t_minus_1 = self.getValueAt(self.currentIndex - 1)
         t_minus_n = self.getValueAt(self.currentIndex - n)
 
-        res1 = (1 + (1) * (t - t_minus_1) / t_minus_1) * t_minus_1 / t_minus_n
-        res2 = (1 + (-1) * (t - t_minus_1) / t_minus_1) * t_minus_1 / t_minus_n
-        res0 = (1 + (0) * (t - t_minus_1) / t_minus_1) * t_minus_1 / t_minus_n
+        res1 = (1 + (1) * ((t - t_minus_1) / t_minus_1)) * (t_minus_1 / t_minus_n)
+        res2 = (1 + (-1) * ((t - t_minus_1) / t_minus_1)) * (t_minus_1 / t_minus_n)
+        res0 = (1 + (0) * ((t - t_minus_1) / t_minus_1)) * (t_minus_1 / t_minus_n)
 
-        return (res0,res1,res2)
+        return [res0,res1,res2]
 
     def reset(self):
         """

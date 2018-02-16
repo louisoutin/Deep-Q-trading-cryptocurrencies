@@ -7,6 +7,7 @@ import pylab as plb
 class TraderAgent:
 
     def __init__(self, coinName="ethereum"):
+        self.nameModel = 'modelHSI_2000.h5'
         self.coin = Coin(coinName)
         self.wallet = Wallet()
         self.brain = DQNetwork(self.getSizeState(), len(Action))
@@ -60,7 +61,7 @@ class TraderAgent:
                                   cum_return,
                                   self.brain.epsilon))
                     # print("Next value :", self.coin.getNextValue())
-                    print("Action :", action)
+                    print("Action :", action, np.argmax(action), Action(np.argmax(action)))
                     print("Cash :", self.wallet.cash)
                     print("Cash USED :", self.wallet.cashUsed)
                     print("Coin :", self.wallet.coins)
@@ -73,13 +74,13 @@ class TraderAgent:
             if len(self.brain.memory) > self.brain.batch_size:
                 self.brain.replay()
             if i % 10 == 0:
-                self.brain.save('modelHSI.h5')
-        self.brain.save('modelHSI.h5')
+                self.brain.save(self.nameModel)
+        self.brain.save(self.nameModel)
 
     def test(self):
 
         self.brain.targetModel = t.brain.build_online_model()
-        self.brain.load("modelHSI.h5")
+        self.brain.load(self.nameModel)
 
         self.brain.memory = deque(maxlen=64)
 
@@ -88,6 +89,7 @@ class TraderAgent:
         state = self.getCurrentState()
         print(state)
         listActions = []
+        lastAction = 0
         while True:
             action = self.brain.act(state)
 
@@ -97,12 +99,13 @@ class TraderAgent:
             isDone, nextExternalState = self.coin.move()
             #nextState = self.wallet.getInternalState(self.coin.getCurrentValue()) + nextExternalState
 
-            rewards = self.coin.getReward()
+            rewards = self.coin.getReward(lastAction)
             nextState = nextExternalState
             self.brain.remember(state, rewards, nextState, isDone)
 
             self.brain.onlineLearning()
 
+            lastAction = np.argmax(action)
             state = nextState
 
             if isDone:
@@ -142,7 +145,7 @@ if __name__ == "__main__":
     t = TraderAgent("test_HSI")
 
     #t.brain.load("modelDropout.h5")
-    t.train(500)
+    #t.train(2000)
 
     listActions = t.test()
     t.plotActions(listActions)

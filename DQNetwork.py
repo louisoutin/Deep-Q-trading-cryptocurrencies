@@ -4,6 +4,7 @@ from keras.layers import Dense, Dropout, Flatten  # Dense layers are fully conne
 from collections import deque  # For storing moves
 from Action import *
 
+import tensorflow as tf
 import numpy as np
 import random  # For sampling batches from the observations
 
@@ -22,7 +23,7 @@ class DQNetwork:
         self.state_size = state_size
         self.action_size = action_size
         self.memory = deque(maxlen=2000)
-        self.gamma = 0.85  # discount rate
+        self.gamma = 0.9  # discount rate
         self.epsilon = 0.7  # exploration rate
         self.epsilon_min = 0.01
         self.epsilon_decay = 0.995
@@ -40,7 +41,7 @@ class DQNetwork:
         model.add(Dropout(0.25))
         model.add(Dense(units=50, activation="relu"))
         model.add(Dense(self.action_size, activation="linear"))
-        model.compile(loss="mse", optimizer=Adam(lr=0.0001))
+        model.compile(loss=self.huber_loss, optimizer=Adam(lr=0.0001))
         return model
 
     def build_online_model(self):
@@ -49,11 +50,20 @@ class DQNetwork:
         """
         model = Sequential()
         model.add(Dense(units=100, input_shape=(self.state_size,), activation="relu"))
-        model.add(Dropout(0.25)) # ou ligne suivante?
+        model.add(Dropout(0.25))
         model.add(Dense(units=50, activation="relu"))
         model.add(Dense(self.action_size, activation="linear"))
-        model.compile(loss="mse", optimizer=Adam(lr=0.0005))
+        model.compile(loss=self.huber_loss, optimizer=Adam(lr=0.0001))
         return model
+
+    def huber_loss(self, y_true, y_pred, clip_delta=1.0):
+        error = y_true - y_pred
+        cond = tf.keras.backend.abs(error) < clip_delta
+
+        squared_loss = 0.5 * tf.keras.backend.square(error)
+        linear_loss = clip_delta * (tf.keras.backend.abs(error) - 0.5 * clip_delta)
+
+        return tf.where(cond, squared_loss, linear_loss)
 
     def remember(self, state, rewards, next_state, done):
         self.memory.append((state, rewards, next_state, done))
@@ -70,23 +80,6 @@ class DQNetwork:
     def updateTargetModel(self):
         self.targetModel.set_weights(self.model.get_weights())
 
-    def replayInitial(self):
-        batch_size = self.batch_size
-        minibatch = random.sample(self.memory, batch_size)
-
-        for state, rewards, next_state, done in minibatch:
-            target = reward
-            if not done:
-                target = reward + self.gamma * \
-                         np.amax(self.model.predict(np.asarray([next_state]))[0])
-            target_f = self.model.predict(np.asarray([state]))
-            target_f[0][action.value] = target
-            #print(np.asarray([state]), target_f)
-            self.model.fit(np.asarray([state]), target_f, epochs=1, verbose=0)
-        if self.epsilon > self.epsilon_min:
-            self.epsilon *= self.epsilon_decay
-
-
     def replay(self):
         batch_size = self.batch_size
         minibatch = random.sample(self.memory, batch_size)
@@ -102,7 +95,7 @@ class DQNetwork:
                 # Bellman Equation
                 target[0] = rewards + self.gamma * t[np.argmax(a)]
 
-                self.model.fit(np.asarray([state]), target, epochs=1, verbose=0)
+            self.model.fit(np.asarray([state]), target, epochs=1, verbose=0)
 
         # update the epsilon to gradually reduce the random exploration
         if self.epsilon > self.epsilon_min:
