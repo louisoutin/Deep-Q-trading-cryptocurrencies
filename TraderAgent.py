@@ -4,10 +4,11 @@ from DQNetwork import *
 from Action import *
 import pylab as plb
 
+
 class TraderAgent:
 
-    def __init__(self, coinName="ethereum"):
-        self.nameModel = 'modelHSI_2000.h5'
+    def __init__(self, coinName, nameModel):
+        self.nameModel = nameModel
         self.coin = Coin(coinName)
         self.wallet = Wallet()
         self.brain = DQNetwork(self.getSizeState(), len(Action))
@@ -29,7 +30,7 @@ class TraderAgent:
 
     def applyAction(self, action, amount=None):
         if action == Action.BUY:
-            self.wallet.buy(self.coin.getCurrentValue(), self.wallet.cash/self.coin.getCurrentValue())
+            self.wallet.buy(self.coin.getCurrentValue(), self.wallet.cash / self.coin.getCurrentValue())
         elif action == Action.SELL:
             self.wallet.sell(self.coin.getCurrentValue(), self.wallet.coins)
 
@@ -45,10 +46,10 @@ class TraderAgent:
                 self.applyAction(Action(np.argmax(action)))
 
                 isDone, nextExternalState = self.coin.move()  # One step ahead (CurrentValue += 1)
-                #nextState = self.wallet.getInternalState(self.coin.getCurrentValue()) + nextExternalState
+                # nextState = self.wallet.getInternalState(self.coin.getCurrentValue()) + nextExternalState
                 nextState = nextExternalState
                 rewards = self.coin.getReward()
-                #print("rewards : ", rewards)
+                # print("rewards : ", rewards)
                 self.brain.remember(state, rewards, nextState, isDone)
                 state = nextState
 
@@ -67,9 +68,9 @@ class TraderAgent:
                     print("Coin :", self.wallet.coins)
 
                     f.write("episode: {}/{}, returns: {}, epsilon: {:.2}"
-                          .format(i + 1, epoch,
-                                  cum_return,
-                                  self.brain.epsilon)+"\n")
+                            .format(i + 1, epoch,
+                                    cum_return,
+                                    self.brain.epsilon) + "\n")
                     break
             if len(self.brain.memory) > self.brain.batch_size:
                 self.brain.replay()
@@ -94,10 +95,10 @@ class TraderAgent:
             action = self.brain.act(state)
 
             self.applyAction(Action(np.argmax(action)))
-            #print(Action(np.argmax(action)))
+            # print(Action(np.argmax(action)))
             listActions.append(Action(np.argmax(action)))
             isDone, nextExternalState = self.coin.move()
-            #nextState = self.wallet.getInternalState(self.coin.getCurrentValue()) + nextExternalState
+            # nextState = self.wallet.getInternalState(self.coin.getCurrentValue()) + nextExternalState
 
             rewards = self.coin.getReward(lastAction)
             nextState = nextExternalState
@@ -114,18 +115,22 @@ class TraderAgent:
                 print("Cash :", self.wallet.cash)
                 print("Coin :", self.wallet.coins)
                 print("Final total money :", self.wallet.getCurrentMoney(self.coin.getCurrentValue()))
-                print("Percentage Profit :", self.wallet.getProfitsPercents(self.wallet.getCurrentMoney(self.coin.getCurrentValue())))
-
+                print("Percentage Profit :",
+                      self.wallet.getProfitsPercents(self.wallet.getCurrentMoney(self.coin.getCurrentValue())))
 
                 return listActions
 
     def plotActions(self, listActions):
 
-        xBUY = [i for i in range(len(self.coin.dataSet["open"])-self.coin.NumPastDays-1) if listActions[i] == Action.BUY]
-        yBUY = [self.coin.dataSet["open"][i] for i in range(self.coin.NumPastDays,len(self.coin.dataSet["open"])-1) if listActions[i-self.coin.NumPastDays] == Action.BUY]
+        xBUY = [i for i in range(len(self.coin.dataSet["open"]) - self.coin.NumPastDays - 1) if
+                listActions[i] == Action.BUY]
+        yBUY = [self.coin.dataSet["open"][i] for i in range(self.coin.NumPastDays, len(self.coin.dataSet["open"]) - 1)
+                if listActions[i - self.coin.NumPastDays] == Action.BUY]
 
-        xSELL = [i for i in range(len(self.coin.dataSet["open"])-self.coin.NumPastDays-1) if listActions[i] == Action.SELL]
-        ySELL = [self.coin.dataSet["open"][i] for i in range(self.coin.NumPastDays,len(self.coin.dataSet["open"])-1) if listActions[i-self.coin.NumPastDays] == Action.SELL]
+        xSELL = [i for i in range(len(self.coin.dataSet["open"]) - self.coin.NumPastDays - 1) if
+                 listActions[i] == Action.SELL]
+        ySELL = [self.coin.dataSet["open"][i] for i in range(self.coin.NumPastDays, len(self.coin.dataSet["open"]) - 1)
+                 if listActions[i - self.coin.NumPastDays] == Action.SELL]
 
         xHOLD = [i for i in range(len(self.coin.dataSet["open"]) - self.coin.NumPastDays - 1) if
                  listActions[i] == Action.HOLD]
@@ -142,14 +147,13 @@ class TraderAgent:
 
 
 if __name__ == "__main__":
-    t = TraderAgent("test_HSI")
+    t = TraderAgent("test_HSI", 'modelHSI_2000.h5')
 
-    #t.brain.load("modelDropout.h5")
-    #t.train(2000)
+    # t.brain.load("modelDropout.h5")
+    # t.train(2000)
 
     listActions = t.test()
     t.plotActions(listActions)
-
 
 # ModelHSI 200 contre 150 (buy n hold) 200 epochs (only one dropout 0.25 between 1st and 2nd hidden layers)
 # 0.0001 train lr, 0.0005 test online learning

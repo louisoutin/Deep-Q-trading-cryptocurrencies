@@ -1,14 +1,14 @@
-import pandas as pd
-from stockstats import *
 import matplotlib.pyplot as plt
-import numpy as np
+from stockstats import *
+
 
 class Coin:
     """
         Represent the market of a cryptocurrency over a period
     """
     NumPastDays = 200
-    def __init__(self, coinName="ethereum"):
+
+    def __init__(self, coinName):
         self.coinName = coinName
 
         dataSet = pd.read_csv("history/" + self.coinName + ".csv", parse_dates=["Date"])
@@ -17,11 +17,12 @@ class Coin:
         self.dataSet = StockDataFrame.retype(dataSet)
 
         self.length = len(self.dataSet)
-        self.currentIndex = self.NumPastDays+1
+        self.currentIndex = self.NumPastDays + 1
         self.externalStateFeatures = ["currentPrice"]
         self.externalState = {}
         self.updateExternalState()
 
+    # Not use
     def updateExternalState(self):
         self.externalState["currentPrice"] = self.getCurrentValue()
         self.externalState["macd"] = self.dataSet['macd'][self.currentIndex]
@@ -41,33 +42,27 @@ class Coin:
     def getCurrentValue(self):
         return self.dataSet["open"][self.currentIndex]
 
-    def getState(data, t, n):
-        print(data, t, n)
-        d = t - n + 1
-        block = data[d:t + 1] if d >= 0 else -d * [data[0]] + data[0:t + 1]  # pad with t0
-        res = []
-        for i in xrange(n - 1):
-            res.append(sigmoid(block[i + 1] - block[i]))
-
-        print([res])
-        return np.array([res])
-
-    def sigmoid(self,x):
+    # Not use
+    @staticmethod
+    def sigmoid(x):
         import math
         # Prevent overflow
         x = np.float(x)
-        ans = np.float(1 / (1 + math.exp(-x*0.1)))
+        ans = np.float(1 / (1 + math.exp(-x * 0.1)))
         return ans
 
     def getDeltaValues(self):
+        """
+            Return the delta values of the price
+        """
         n = self.NumPastDays
         deltas = []
         for i in range(n):
-            if self.currentIndex-(i+1) < 0:
+            if self.currentIndex - (i + 1) < 0:
                 delta = 0.5
             else:
-                currentValue = self.dataSet["open"][self.currentIndex-i]
-                previousValue = self.dataSet["open"][self.currentIndex-(i+1)]
+                currentValue = self.dataSet["open"][self.currentIndex - i]
+                previousValue = self.dataSet["open"][self.currentIndex - (i + 1)]
                 delta = (currentValue - previousValue) / previousValue
             deltas.append(delta)
         return deltas
@@ -118,8 +113,9 @@ class Coin:
 
         return 1 * (
                 self.currentIndex - 1 >= 0
-                and self.dataSet['boll_ub'][self.currentIndex - 1] <= self.getCurrentValue()
-                and self.dataSet['boll_ub'][self.currentIndex] > self.getCurrentValue()
+                and self.dataSet['boll_ub'][self.currentIndex - 1]
+                <= self.getCurrentValue()
+                < self.dataSet['boll_ub'][self.currentIndex]
         )
 
     def crossingLowerBand(self):
@@ -128,8 +124,9 @@ class Coin:
 
         return 1 * (
                 self.currentIndex - 1 >= 0
-                and self.dataSet['boll_lb'][self.currentIndex - 1] >= self.getCurrentValue()
-                and self.dataSet['boll_lb'][self.currentIndex] < self.getCurrentValue()
+                and self.dataSet['boll_lb'][self.currentIndex - 1]
+                >= self.getCurrentValue()
+                > self.dataSet['boll_lb'][self.currentIndex]
         )
 
     def plot(self):
@@ -143,10 +140,10 @@ class Coin:
         plt.plot(t, self.dataSet["boll_ub"])
         plt.show()
 
-    def getReward(self,lastAction = None):
+    def getReward(self, lastAction=None):
         res = self.cummulatedWealth(100)
-        #if lastAction != None: # bonus if same than last action
-            #res[lastAction]+=0.0025
+        # if lastAction != None: # bonus if same than last action
+        # res[lastAction]+=0.0025
         return res
 
     def dailyProfit(self, action):
@@ -161,7 +158,7 @@ class Coin:
         if action.value == 2:
             a = -1
 
-        return a * ( self.getCurrentValue() - self.getPreviousValue() )
+        return a * (self.getCurrentValue() - self.getPreviousValue())
 
     def cummulatedWealth(self, n=5):
         """
@@ -179,18 +176,18 @@ class Coin:
         res2 = (1 + (-1) * ((t - t_minus_1) / t_minus_1)) * (t_minus_1 / t_minus_n)
         res0 = (1 + (0) * ((t - t_minus_1) / t_minus_1)) * (t_minus_1 / t_minus_n)
 
-        return [res0,res1,res2]
+        return [res0, res1, res2]
 
     def reset(self):
         """
             Reset the index and external states
         """
-        self.currentIndex = self.NumPastDays+1
+        self.currentIndex = self.NumPastDays + 1
         self.updateExternalState()
 
 
 if __name__ == "__main__":
-    ethCoin = Coin("train_BTC_EUR_2011_2014")
+    coinName = Coin("train_BTC_EUR_2011_2014")
     # print(ethCoin.dataSet)
     #
     # print("\n************\n")
@@ -204,9 +201,3 @@ if __name__ == "__main__":
     # print(k)
     #
     # ethCoin.plot()
-
-    ethCoin.currentIndex = ethCoin.NumPastDays
-    print(ethCoin.getCurrentValue())
-    print(ethCoin.getDeltaValues())
-    ethCoin.move()
-    print(ethCoin.getDeltaValues())
