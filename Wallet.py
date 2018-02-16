@@ -1,5 +1,3 @@
-import numpy as np
-
 class Wallet:
     """
         Represent the wallet/portfolio of an agent
@@ -66,14 +64,14 @@ class Wallet:
             Change cash to coin for the current price
             :param currentPrice:
         """
-        if coinsToBuy == None:
+        if coinsToBuy is None:
             amount = self.COINS_PER_ORDER
         else:
             amount = coinsToBuy
 
         price = amount * currentPrice
 
-        if self.cash+0.00001 >= price:
+        if self.cash + 0.00001 >= price:
             self.coins += amount
             self.cash -= price
             self.cashUsed += price
@@ -81,16 +79,16 @@ class Wallet:
     def sell(self, currentPrice, coinsToSell=None):
         """
             Change coin to cash for the current price
+            :param coinsToSell:
             :param currentPrice:
         """
-        if coinsToSell == None:
+        if coinsToSell is None:
             amount = self.COINS_PER_ORDER
         else:
             amount = coinsToSell
-        if self.coins+0.00001 >= amount:
+        if self.coins + 0.00001 >= amount:
             self.coins -= amount
             self.cash += amount * currentPrice
-
 
     def reset(self):
         """

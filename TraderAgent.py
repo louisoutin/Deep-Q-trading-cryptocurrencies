@@ -19,12 +19,8 @@ class TraderAgent:
     def getCurrentState(self):
         """
             Return a list of value which represent a state
-                state = [ internalState, externalState ]
-                state = [ "coins", "cash", "currentMoney", "returns",
-                            "currentPrice", "macd", "crossUpBand", "crossDownBand", "boll_ub", "boll_lb"]
+                state = [ externalState ]
         """
-        currentPrice = self.coin.getCurrentValue()
-        internalState = self.wallet.updateInternalState(currentPrice)
         externalState = self.coin.getExternalState()
         return externalState
 
@@ -39,38 +35,35 @@ class TraderAgent:
             self.coin.reset()
             self.wallet.reset()
             state = self.getCurrentState()
+
             f = open('log.txt', 'a')
             while True:
                 action = self.brain.act(state)
-
                 self.applyAction(Action(np.argmax(action)))
 
                 isDone, nextExternalState = self.coin.move()  # One step ahead (CurrentValue += 1)
-                # nextState = self.wallet.getInternalState(self.coin.getCurrentValue()) + nextExternalState
                 nextState = nextExternalState
                 rewards = self.coin.getReward()
-                # print("rewards : ", rewards)
+
                 self.brain.remember(state, rewards, nextState, isDone)
+
                 state = nextState
 
                 if isDone:
                     self.brain.updateTargetModel()
 
                     cum_return = self.wallet.getReturnRate(self.coin.getCurrentValue())
-                    print("episode: {}/{}, returns: {}, epsilon: {:.2}"
+                    print("episode: {}/{}, returns: {}"
                           .format(i + 1, epoch,
-                                  cum_return,
-                                  self.brain.epsilon))
-                    # print("Next value :", self.coin.getNextValue())
+                                  cum_return))
                     print("Action :", action, np.argmax(action), Action(np.argmax(action)))
                     print("Cash :", self.wallet.cash)
                     print("Cash USED :", self.wallet.cashUsed)
                     print("Coin :", self.wallet.coins)
 
-                    f.write("episode: {}/{}, returns: {}, epsilon: {:.2}"
+                    f.write("episode: {}/{}, returns: {}"
                             .format(i + 1, epoch,
-                                    cum_return,
-                                    self.brain.epsilon) + "\n")
+                                    cum_return) + "\n")
                     break
             if len(self.brain.memory) > self.brain.batch_size:
                 self.brain.replay()
@@ -79,7 +72,6 @@ class TraderAgent:
         self.brain.save(self.nameModel)
 
     def test(self):
-
         self.brain.targetModel = t.brain.build_online_model()
         self.brain.load(self.nameModel)
 
@@ -88,20 +80,20 @@ class TraderAgent:
         self.coin.reset()
         self.wallet.reset()
         state = self.getCurrentState()
-        print(state)
+
         listActions = []
         lastAction = 0
+
         while True:
             action = self.brain.act(state)
-
             self.applyAction(Action(np.argmax(action)))
-            # print(Action(np.argmax(action)))
-            listActions.append(Action(np.argmax(action)))
-            isDone, nextExternalState = self.coin.move()
-            # nextState = self.wallet.getInternalState(self.coin.getCurrentValue()) + nextExternalState
 
+            listActions.append(Action(np.argmax(action)))
+
+            isDone, nextExternalState = self.coin.move()
             rewards = self.coin.getReward(lastAction)
             nextState = nextExternalState
+
             self.brain.remember(state, rewards, nextState, isDone)
 
             self.brain.onlineLearning()
@@ -121,6 +113,8 @@ class TraderAgent:
                 return listActions
 
     def plotActions(self, listActions):
+        xPrice = [i for i in range(len(self.coin.dataSet["open"]) - self.coin.NumPastDays - 1)]
+        yPrice = [self.coin.dataSet["open"][i] for i in range(self.coin.NumPastDays, len(self.coin.dataSet["open"]) - 1)]
 
         xBUY = [i for i in range(len(self.coin.dataSet["open"]) - self.coin.NumPastDays - 1) if
                 listActions[i] == Action.BUY]
@@ -137,6 +131,7 @@ class TraderAgent:
         yHOLD = [self.coin.dataSet["open"][i] for i in range(self.coin.NumPastDays, len(self.coin.dataSet["open"]) - 1)
                  if listActions[i - self.coin.NumPastDays] == Action.HOLD]
 
+        plb.plot(xPrice, yPrice, 'ko', linewidth=2, label="Price")
         plb.plot(xBUY, yBUY, 'bo', label="Buy")
         plb.plot(xSELL, ySELL, 'ro', label="Sell")
         plb.plot(xHOLD, yHOLD, 'yo', label="Hold")
