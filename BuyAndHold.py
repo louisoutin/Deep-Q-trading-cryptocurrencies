@@ -12,10 +12,23 @@ class BuyAndHold:
     def __init__(self, coinName):
         self.coin = Coin(coinName)
         self.wallet = Wallet()
+        self.bought = False
 
     def applyAction(self, action, amount=None):
         if action == Action.BUY:
-            self.wallet.buy(self.coin.getCurrentValue(), amount)
+            self.wallet.buy(self.coin.getCurrentValue(), self.wallet.cash / self.coin.getCurrentValue())
+
+    def step(self):
+        if not self.bought:
+            self.applyAction(Action.BUY)
+            self.bought = True
+        else:
+            self.applyAction(Action.HOLD)
+        done, _ = self.coin.move()
+        if done:
+            return False
+        else:
+            return self.wallet.getCurrentMoney(self.coin.getCurrentValue())
 
     def test(self):
         self.coin.reset()

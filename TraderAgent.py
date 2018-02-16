@@ -2,6 +2,8 @@ from Coin import *
 from Wallet import *
 from DQNetwork import *
 from Action import *
+from BuyAndHold import *
+from ShowResult import *
 import pylab as plb
 
 
@@ -9,6 +11,7 @@ class TraderAgent:
 
     def __init__(self, coinName, nameModel):
         self.nameModel = nameModel
+        self.coinName = coinName
         self.coin = Coin(coinName)
         self.wallet = Wallet()
         self.brain = DQNetwork(self.getSizeState(), len(Action))
@@ -131,7 +134,7 @@ class TraderAgent:
         yHOLD = [self.coin.dataSet["open"][i] for i in range(self.coin.NumPastDays, len(self.coin.dataSet["open"]) - 1)
                  if listActions[i - self.coin.NumPastDays] == Action.HOLD]
 
-        plb.plot(xPrice, yPrice, 'ko', linewidth=2, label="Price")
+        plb.plot(xPrice, yPrice, 'k-', linewidth=2, label="Price")
         plb.plot(xBUY, yBUY, 'bo', label="Buy")
         plb.plot(xSELL, ySELL, 'ro', label="Sell")
         plb.plot(xHOLD, yHOLD, 'yo', label="Hold")
@@ -140,15 +143,45 @@ class TraderAgent:
 
         plb.show()
 
+    def plotBuyAndHoldComparation(self,listActions):
+        traderDQN = ShowResult(self.coinName, listActions)
+        baseline = BuyAndHold(self.coinName)
+        listMoneyDQN = []
+        listMoneyBL = []
+        while True:
+            totalDQN = traderDQN.step()
+            totalBL = baseline.step()
+            if totalDQN == False or totalBL == False:
+                break
+            listMoneyDQN.append(totalDQN)
+            listMoneyBL.append(totalBL)
+
+        percentDQN = traderDQN.wallet.getProfitsPercents(traderDQN.wallet.getCurrentMoney(traderDQN.coin.getCurrentValue()))
+        percentBL = baseline.wallet.getProfitsPercents(baseline.wallet.getCurrentMoney(baseline.coin.getCurrentValue()))
+
+        x = [i for i in range(len(listMoneyDQN))]
+        plb.plot(x, listMoneyDQN, 'r-', linewidth=2, label="DQN: "+str(round(percentDQN,2))+"% profit")
+        plb.plot(x, listMoneyBL, 'b-', linewidth=2, label="BL: "+str(round(percentBL,2))+"% profit")
+        plb.legend(loc='upper right')
+        plb.show()
+        print(listMoneyBL)
+        print(listMoneyDQN)
+
+
+
+
+
 
 if __name__ == "__main__":
-    t = TraderAgent("test_HSI", 'modelHSI_2000.h5')
+    t = TraderAgent("test_court_HSI", 'modelHSI_2000.h5')
 
     # t.brain.load("modelDropout.h5")
     # t.train(2000)
 
-    listActions = t.test()
-    t.plotActions(listActions)
+    listActionsDQN = t.test()
+    t.plotActions(listActionsDQN)
+
+    t.plotBuyAndHoldComparation(listActionsDQN)
 
 # ModelHSI 200 contre 150 (buy n hold) 200 epochs (only one dropout 0.25 between 1st and 2nd hidden layers)
 # 0.0001 train lr, 0.0005 test online learning
